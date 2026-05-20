@@ -74,9 +74,50 @@ async function main() {
         logToFile('WordPress client initialized successfully.');
 
         logToFile('Setting up server transport...');
-        const transport = new StdioServerTransport();
-        await server.connect(transport);
-        logToFile('WordPress MCP Server running on stdio');
+
+if (process.env.PORT) {
+  const express = await import('express');
+  const { SSEServerTransport } = await import('@modelcontextprotocol/sdk/server/sse.js');
+
+  const app = express.default();
+  const transports: Record<string, any> = {};
+
+  app.get('/sse', async (req, res) => {
+    const transport = new SSEServerTransport('/messages', res);
+    transports[transport.sessionId] = transport;
+
+    res.on('close', () => {
+      delete transports[transport.sessionId];
+    });
+
+    await server.connect(transport);
+  });
+
+  app.post('/messages', async (req, res) => {
+    const sessionId = req.query.sessionId as string;
+    const transport = transports[sessionId];
+
+    if (!transport) {
+      res.status(400).send('No transport found for sessionId');
+      return;
+    }
+
+    await transport.handlePostMessage(req, res);
+  });
+
+  app.get('/', (req, res) => {
+    res.json({ status: 'online', endpoint: '/sse' });
+  });
+
+  const port = Number(process.env.PORT || 10000);
+  app.listen(port, () => {
+    logToFile(`MCP SSE server listening on port ${port}`);
+  });
+} else {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  logToFile('WordPress MCP Server running on stdio');
+}
         logToFile(`Registered ${allTools.length} tools`);
     } catch (error: any) {
         const errorMessage = error instanceof Error ? error.message : String(error);
