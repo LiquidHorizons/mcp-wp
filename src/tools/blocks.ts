@@ -122,6 +122,7 @@ ${newEndToken}
 
       return {
       toolResult: {
+        isError: false,
         content: [
           {
             type: 'text',
