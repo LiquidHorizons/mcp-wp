@@ -120,26 +120,28 @@ ${newEndToken}
       { auth }
     );
 
-   return {
-  toolResult: {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(
+      return {
+      toolResult: {
+        content: [
           {
-            success: true,
-            id: updated.data.id,
-            title: updated.data.title?.rendered,
-            status: updated.data.status,
-            inserted_after: afterMarker,
-            new_section: newMarker,
-            link: updated.data.link,
-            block_version: updated.data.content?.block_version,
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: true,
+                id: updated.data.id,
+                title: updated.data.title?.rendered,
+                status: updated.data.status,
+                inserted_after: afterMarker,
+                new_section: newMarker,
+                link: updated.data.link,
+                block_version: updated.data.content?.block_version,
+              },
+              null,
+              2
+            ),
           },
-          null,
-          2
-        ),
+        ],
       },
-    ],
+    };
   },
 };
