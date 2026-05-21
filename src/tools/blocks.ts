@@ -1,4 +1,3 @@
-import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 
 const wpBaseUrl = process.env.WORDPRESS_API_URL;
@@ -16,34 +15,38 @@ function getAuth() {
   };
 }
 
-export const blockTools: Tool[] = [
+export const blockTools = [
   {
     name: 'wp_insert_after_section',
     description:
       'Safely insert Gutenberg block markup after a Liquid Horizons section marker without requiring ChatGPT to rewrite the whole page.',
-        inputSchema: {
-      content_type: {
-        type: 'string',
-        enum: ['page', 'post'],
-        default: 'page',
-        description: 'Whether to edit a page or post.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        content_type: {
+          type: 'string',
+          enum: ['page', 'post'],
+          default: 'page',
+          description: 'Whether to edit a page or post.',
+        },
+        id: {
+          type: 'number',
+          description: 'The WordPress page or post ID.',
+        },
+        after_marker: {
+          type: 'string',
+          description: 'The existing section marker to insert after, for example cta-band.',
+        },
+        new_marker: {
+          type: 'string',
+          description: 'The new section marker name, for example footer.',
+        },
+        block_markup: {
+          type: 'string',
+          description: 'Raw Gutenberg block markup to insert.',
+        },
       },
-      id: {
-        type: 'number',
-        description: 'The WordPress page or post ID.',
-      },
-      after_marker: {
-        type: 'string',
-        description: 'The existing section marker to insert after, for example cta-band.',
-      },
-      new_marker: {
-        type: 'string',
-        description: 'The new section marker name, for example footer.',
-      },
-      block_markup: {
-        type: 'string',
-        description: 'Raw Gutenberg block markup to insert.',
-      },
+      required: ['id', 'after_marker', 'new_marker', 'block_markup'],
     },
   },
 ];
@@ -116,7 +119,7 @@ ${newEndToken}
       { auth }
     );
 
-      return {
+    return {
       toolResult: {
         isError: false,
         content: [
