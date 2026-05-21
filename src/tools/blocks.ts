@@ -21,33 +21,29 @@ export const blockTools: Tool[] = [
     name: 'wp_insert_after_section',
     description:
       'Safely insert Gutenberg block markup after a Liquid Horizons section marker without requiring ChatGPT to rewrite the whole page.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        content_type: {
-          type: 'string',
-          enum: ['page', 'post'],
-          default: 'page',
-          description: 'Whether to edit a page or post.',
-        },
-        id: {
-          type: 'number',
-          description: 'The WordPress page or post ID.',
-        },
-        after_marker: {
-          type: 'string',
-          description: 'The existing section marker to insert after, for example cta-band.',
-        },
-        new_marker: {
-          type: 'string',
-          description: 'The new section marker name, for example footer.',
-        },
-        block_markup: {
-          type: 'string',
-          description: 'Raw Gutenberg block markup to insert.',
-        },
+        inputSchema: {
+      content_type: {
+        type: 'string',
+        enum: ['page', 'post'],
+        default: 'page',
+        description: 'Whether to edit a page or post.',
       },
-      required: ['id', 'after_marker', 'new_marker', 'block_markup'],
+      id: {
+        type: 'number',
+        description: 'The WordPress page or post ID.',
+      },
+      after_marker: {
+        type: 'string',
+        description: 'The existing section marker to insert after, for example cta-band.',
+      },
+      new_marker: {
+        type: 'string',
+        description: 'The new section marker name, for example footer.',
+      },
+      block_markup: {
+        type: 'string',
+        description: 'Raw Gutenberg block markup to insert.',
+      },
     },
   },
 ];
