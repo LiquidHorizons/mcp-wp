@@ -1,5 +1,5 @@
 // src/tools/index.ts
-import { Tool } from '@modelcontextprotocol/sdk/types.js';
+
 import { unifiedContentTools, unifiedContentHandlers } from './unified-content.js';
 import { unifiedTaxonomyTools, unifiedTaxonomyHandlers } from './unified-taxonomies.js';
 import { pluginTools, pluginHandlers } from './plugins.js';
@@ -11,8 +11,9 @@ import { sqlQueryTools, sqlQueryHandlers } from './sql-query.js';
 import { siteManagementTools, siteManagementHandlers } from './site-management.js';
 import { blockTools, blockHandlers } from './blocks.js';
 
-// Combine all tools - significantly reduced from ~65 to ~42 tools
-export const allTools: Tool[] = [
+// Use any[] because most existing tools use JSON Schema,
+// while blocks.ts now uses Zod for MCP SDK compatibility.
+export const allTools: any[] = [
   ...unifiedContentTools,
   ...unifiedTaxonomyTools,
   ...pluginTools,
@@ -22,11 +23,10 @@ export const allTools: Tool[] = [
   ...commentTools,
   ...sqlQueryTools,
   ...siteManagementTools,
-  ...blockTools
+  ...blockTools,
 ];
 
-// Combine all handlers
-export const toolHandlers = {
+export const toolHandlers: any = {
   ...unifiedContentHandlers,
   ...unifiedTaxonomyHandlers,
   ...pluginHandlers,
@@ -36,5 +36,5 @@ export const toolHandlers = {
   ...commentHandlers,
   ...sqlQueryHandlers,
   ...siteManagementHandlers,
-  ...blockHandlers
+  ...blockHandlers,
 };
