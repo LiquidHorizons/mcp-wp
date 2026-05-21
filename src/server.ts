@@ -92,7 +92,7 @@ for (const tool of allTools) {
 
   const toolShape = getToolShape((tool as any).inputSchema);
 
-  server.tool(
+  (server as any).tool(
     tool.name,
     tool.description || '',
     toolShape,
