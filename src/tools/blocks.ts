@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { z } from 'zod';
 
 const wpBaseUrl = process.env.WORDPRESS_API_URL;
 const wpUsername = process.env.WORDPRESS_USERNAME;
@@ -21,32 +22,11 @@ export const blockTools = [
     description:
       'Safely insert Gutenberg block markup after a Liquid Horizons section marker without requiring ChatGPT to rewrite the whole page.',
     inputSchema: {
-      type: 'object' as const,
-      properties: {
-        content_type: {
-          type: 'string',
-          enum: ['page', 'post'],
-          default: 'page',
-          description: 'Whether to edit a page or post.',
-        },
-        id: {
-          type: 'number',
-          description: 'The WordPress page or post ID.',
-        },
-        after_marker: {
-          type: 'string',
-          description: 'The existing section marker to insert after, for example cta-band.',
-        },
-        new_marker: {
-          type: 'string',
-          description: 'The new section marker name, for example footer.',
-        },
-        block_markup: {
-          type: 'string',
-          description: 'Raw Gutenberg block markup to insert.',
-        },
-      },
-      required: ['id', 'after_marker', 'new_marker', 'block_markup'],
+      content_type: z.enum(['page', 'post']).default('page').describe('Whether to edit a page or post.'),
+      id: z.number().describe('The WordPress page or post ID.'),
+      after_marker: z.string().describe('The existing section marker to insert after, for example cta-band.'),
+      new_marker: z.string().describe('The new section marker name, for example footer.'),
+      block_markup: z.string().describe('Raw Gutenberg block markup to insert.'),
     },
   },
 ];
@@ -120,28 +100,26 @@ ${newEndToken}
     );
 
     return {
-      toolResult: {
-        isError: false,
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                success: true,
-                id: updated.data.id,
-                title: updated.data.title?.rendered,
-                status: updated.data.status,
-                inserted_after: afterMarker,
-                new_section: newMarker,
-                link: updated.data.link,
-                block_version: updated.data.content?.block_version,
-              },
-              null,
-              2
-            ),
-          },
-        ],
-      },
+      isError: false,
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(
+            {
+              success: true,
+              id: updated.data.id,
+              title: updated.data.title?.rendered,
+              status: updated.data.status,
+              inserted_after: afterMarker,
+              new_section: newMarker,
+              link: updated.data.link,
+              block_version: updated.data.content?.block_version,
+            },
+            null,
+            2
+          ),
+        },
+      ],
     };
   },
 };
