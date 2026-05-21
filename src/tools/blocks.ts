@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { z } from 'zod';
 
 const wpBaseUrl = process.env.WORDPRESS_API_URL;
 const wpUsername = process.env.WORDPRESS_USERNAME;
@@ -20,34 +21,32 @@ export const blockTools = [
     name: 'wp_insert_after_section',
     description:
       'Safely insert Gutenberg block markup after a Liquid Horizons section marker without requiring ChatGPT to rewrite the whole page.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        content_type: {
-          type: 'string',
-          enum: ['page', 'post'],
-          default: 'page',
-          description: 'Whether to edit a page or post.',
-        },
-        id: {
-          type: 'number',
-          description: 'The WordPress page or post ID.',
-        },
-        after_marker: {
-          type: 'string',
-          description: 'The existing section marker to insert after, for example cta-band.',
-        },
-        new_marker: {
-          type: 'string',
-          description: 'The new section marker name, for example footer.',
-        },
-        block_markup: {
-          type: 'string',
-          description: 'Raw Gutenberg block markup to insert.',
-        },
-      },
-      required: ['id', 'after_marker', 'new_marker', 'block_markup'],
-    },
+    inputSchema: z.object({
+      content_type: z
+        .enum(['page', 'post'])
+        .default('page')
+        .describe('Whether to edit a page or post.'),
+
+      id: z
+        .number()
+        .describe('The WordPress page or post ID.'),
+
+      after_marker: z
+        .string()
+        .describe(
+          'The existing section marker to insert after, for example cta-band.'
+        ),
+
+      new_marker: z
+        .string()
+        .describe(
+          'The new section marker name, for example footer.'
+        ),
+
+      block_markup: z
+        .string()
+        .describe('Raw Gutenberg block markup to insert.'),
+    }),
   },
 ];
 
@@ -76,20 +75,33 @@ export const blockHandlers = {
     }
 
     const auth = getAuth();
-    const typePath = contentType === 'post' ? 'posts' : 'pages';
-    const endpoint = `${wpBaseUrl}/wp-json/wp/v2/${typePath}/${id}?context=edit`;
+
+    const typePath = contentType === 'post'
+      ? 'posts'
+      : 'pages';
+
+    const endpoint =
+      `${wpBaseUrl}/wp-json/wp/v2/${typePath}/${id}?context=edit`;
 
     const existing = await axios.get(endpoint, { auth });
 
-    const rawContent = existing.data?.content?.raw || '';
+    const rawContent =
+      existing.data?.content?.raw || '';
 
     if (!rawContent) {
-      throw new Error('Could not read raw page content. WordPress did not return content.raw.');
+      throw new Error(
+        'Could not read raw page content. WordPress did not return content.raw.'
+      );
     }
 
-    const afterToken = `<!-- LH_SECTION_END: ${afterMarker} -->`;
-    const newStartToken = `<!-- LH_SECTION_START: ${newMarker} -->`;
-    const newEndToken = `<!-- LH_SECTION_END: ${newMarker} -->`;
+    const afterToken =
+      `<!-- LH_SECTION_END: ${afterMarker} -->`;
+
+    const newStartToken =
+      `<!-- LH_SECTION_START: ${newMarker} -->`;
+
+    const newEndToken =
+      `<!-- LH_SECTION_END: ${newMarker} -->`;
 
     if (!rawContent.includes(afterToken)) {
       throw new Error(`Marker not found: ${afterToken}`);
@@ -134,7 +146,8 @@ ${newEndToken}
                 inserted_after: afterMarker,
                 new_section: newMarker,
                 link: updated.data.link,
-                block_version: updated.data.content?.block_version,
+                block_version:
+                  updated.data.content?.block_version,
               },
               null,
               2
