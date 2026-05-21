@@ -1,155 +1,204 @@
 #!/usr/bin/env node
 // src/server.ts
+
 import * as dotenv from 'dotenv';
-dotenv.config(); // Load environment variables from .env first
+dotenv.config();
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { allTools, toolHandlers } from './tools/index.js';
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 
-
-// Create MCP server instance
 const server = new McpServer({
-    name: "wordpress",
-    version: "0.0.1"
-}, {
-    capabilities: {
-        tools: allTools.reduce((acc, tool) => {
-            acc[tool.name] = tool;
-            return acc;
-        }, {} as Record<string, any>)
-    }
+  name: 'wordpress',
+  version: '0.0.1',
 });
 
-// Register each tool from our tools list with its corresponding handler
+function jsonSchemaPropertyToZod(prop: any): z.ZodTypeAny {
+  if (!prop || typeof prop !== 'object') {
+    return z.any();
+  }
+
+  let schema: z.ZodTypeAny;
+
+  if (Array.isArray(prop.enum) && prop.enum.length > 0) {
+    schema = z.enum(prop.enum as [string, ...string[]]);
+  } else {
+    switch (prop.type) {
+      case 'string':
+        schema = z.string();
+        break;
+      case 'number':
+      case 'integer':
+        schema = z.number();
+        break;
+      case 'boolean':
+        schema = z.boolean();
+        break;
+      case 'array':
+        schema = z.array(z.any());
+        break;
+      case 'object':
+        schema = z.record(z.any());
+        break;
+      default:
+        schema = z.any();
+    }
+  }
+
+  if (prop.description && typeof schema.describe === 'function') {
+    schema = schema.describe(prop.description);
+  }
+
+  if (prop.default !== undefined) {
+    schema = schema.default(prop.default);
+  }
+
+  return schema;
+}
+
+function getToolShape(inputSchema: any): z.ZodRawShape {
+  if (inputSchema?.shape) {
+    return inputSchema.shape;
+  }
+
+  if (inputSchema?.properties) {
+    const required = new Set(inputSchema.required || []);
+    const shape: z.ZodRawShape = {};
+
+    for (const [key, prop] of Object.entries(inputSchema.properties)) {
+      let fieldSchema = jsonSchemaPropertyToZod(prop);
+
+      if (!required.has(key)) {
+        fieldSchema = fieldSchema.optional();
+      }
+
+      shape[key] = fieldSchema;
+    }
+
+    return shape;
+  }
+
+  return {};
+}
+
 for (const tool of allTools) {
-    const handler = toolHandlers[tool.name as keyof typeof toolHandlers];
-    if (!handler) continue;
-    
-    const wrappedHandler = async (args: any) => {
-        // The handler functions are already typed with their specific parameter types
-        const result = await handler(args);
-        return {
-            content: result.toolResult.content.map((item: { type: string; text: string }) => ({
-                ...item,
-                type: "text" as const
-            })),
-            isError: result.toolResult.isError
-        };
-    };
-    
-    // console.log(`Registering tool: ${tool.name}`);
-    // console.log(`Input schema: ${JSON.stringify(tool.inputSchema)}`);
+  const handler = toolHandlers[tool.name as keyof typeof toolHandlers];
 
-    // const zodSchema = z.any().optional();
-    // const jsonSchema = zodToJsonSchema(z.object(tool.inputSchema.properties as z.ZodRawShape));
+  if (!handler) {
+    continue;
+  }
 
-    // const schema = z.object(tool.inputSchema as z.ZodRawShape).catchall(z.unknown());
-    
-    // The inputSchema is already in JSON Schema format with properties
-    // server.tool(tool.name, tool.inputSchema.shape, wrappedHandler);
-    // const zodSchema = z.any().optional();
-    // const jsonSchema = zodToJsonSchema(z.object(tool.inputSchema.properties as z.ZodRawShape));
-    // const parsedSchema = z.any().optional().parse(jsonSchema);
+  const toolShape = getToolShape((tool as any).inputSchema);
 
-    const zodSchema = z.object(tool.inputSchema.properties as z.ZodRawShape); 
-   (server.tool(tool.name, zodSchema.shape as any, wrappedHandler as any))
+  server.tool(
+    tool.name,
+    tool.description || '',
+    toolShape,
+    async (args: any) => {
+      const result = await handler(args);
 
+      return result.toolResult || result;
+    }
+  );
 }
 
 async function main() {
-    const { logToFile } = await import('./wordpress.js');
-    
-    // Log startup info to stderr (MCP protocol uses stdout)
-    logToFile('Starting WordPress MCP server...', 'info');
-    logToFile(`Node version: ${process.version}`, 'info');
-    logToFile(`Working directory: ${process.cwd()}`, 'info');
+  const { logToFile } = await import('./wordpress.js');
 
-    try {
-        logToFile('Initializing WordPress client...');
-        const { initWordPress } = await import('./wordpress.js');
-        await initWordPress();
-        logToFile('WordPress client initialized successfully.');
+  logToFile('Starting WordPress MCP server...', 'info');
+  logToFile(`Node version: ${process.version}`, 'info');
+  logToFile(`Working directory: ${process.cwd()}`, 'info');
 
-        logToFile('Setting up server transport...');
+  try {
+    logToFile('Initializing WordPress client...');
+    const { initWordPress } = await import('./wordpress.js');
+    await initWordPress();
+    logToFile('WordPress client initialized successfully.');
 
-if (process.env.PORT) {
-  const express = await import('express');
-  const { SSEServerTransport } = await import('@modelcontextprotocol/sdk/server/sse.js');
+    logToFile('Setting up server transport...');
 
-  const app = express.default();
-  const transports: Record<string, any> = {};
+    if (process.env.PORT) {
+      const express = await import('express');
+      const app = express.default();
 
-  app.get('/sse', async (req, res) => {
-    const transport = new SSEServerTransport('/messages', res);
-    transports[transport.sessionId] = transport;
+      const transports: Record<string, any> = {};
 
-    res.on('close', () => {
-      delete transports[transport.sessionId];
-    });
+      app.get('/sse', async (req, res) => {
+        const transport = new SSEServerTransport('/messages', res);
+        transports[transport.sessionId] = transport;
 
-    await server.connect(transport);
-  });
+        res.on('close', () => {
+          delete transports[transport.sessionId];
+        });
 
-  app.post('/messages', async (req, res) => {
-    const sessionId = req.query.sessionId as string;
-    const transport = transports[sessionId];
+        await server.connect(transport);
+      });
 
-    if (!transport) {
-      res.status(400).send('No transport found for sessionId');
-      return;
-    }
+      app.post('/messages', async (req, res) => {
+        const sessionId = req.query.sessionId as string;
+        const transport = transports[sessionId];
 
-    await transport.handlePostMessage(req, res);
-  });
-
-  app.get('/', (req, res) => {
-    res.json({ status: 'online', endpoint: '/sse' });
-  });
-
-  const port = Number(process.env.PORT || 10000);
-  app.listen(port, () => {
-    logToFile(`MCP SSE server listening on port ${port}`);
-  });
-} else {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  logToFile('WordPress MCP Server running on stdio');
-}
-        logToFile(`Registered ${allTools.length} tools`);
-    } catch (error: any) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        const errorStack = error instanceof Error ? error.stack : undefined;
-        logToFile(`Failed to initialize server: ${errorMessage}`);
-        if (errorStack) {
-            logToFile(`Stack trace: ${errorStack}`);
+        if (!transport) {
+          res.status(400).send('No transport found for sessionId');
+          return;
         }
-        process.exit(1);
+
+        await transport.handlePostMessage(req, res);
+      });
+
+      app.get('/', (req, res) => {
+        res.json({ status: 'online', endpoint: '/sse' });
+      });
+
+      const port = Number(process.env.PORT || 10000);
+
+      app.listen(port, () => {
+        logToFile(`MCP SSE server listening on port ${port}`);
+      });
+    } else {
+      const transport = new StdioServerTransport();
+      await server.connect(transport);
+      logToFile('WordPress MCP Server running on stdio');
     }
+
+    logToFile(`Registered ${allTools.length} tools`);
+  } catch (error: any) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+
+    logToFile(`Failed to initialize server: ${errorMessage}`);
+
+    if (errorStack) {
+      logToFile(`Stack trace: ${errorStack}`);
+    }
+
+    process.exit(1);
+  }
 }
 
-// Handle process signals and errors
-// IMPORTANT: MCP uses stdout for JSON-RPC — never use console.log here
 process.on('SIGTERM', () => {
-    process.stderr.write('[SHUTDOWN] Received SIGTERM, shutting down...\n');
-    process.exit(0);
+  process.stderr.write('[SHUTDOWN] Received SIGTERM, shutting down...\n');
+  process.exit(0);
 });
+
 process.on('SIGINT', () => {
-    process.stderr.write('[SHUTDOWN] Received SIGINT, shutting down...\n');
-    process.exit(0);
+  process.stderr.write('[SHUTDOWN] Received SIGINT, shutting down...\n');
+  process.exit(0);
 });
+
 process.on('uncaughtException', (error) => {
-    process.stderr.write(`[FATAL] Uncaught exception: ${error}\n`);
-    process.exit(1);
+  process.stderr.write(`[FATAL] Uncaught exception: ${error}\n`);
+  process.exit(1);
 });
+
 process.on('unhandledRejection', (error) => {
-    process.stderr.write(`[FATAL] Unhandled rejection: ${error}\n`);
-    process.exit(1);
+  process.stderr.write(`[FATAL] Unhandled rejection: ${error}\n`);
+  process.exit(1);
 });
 
 main().catch((error) => {
-    process.stderr.write(`[FATAL] Startup error: ${error}\n`);
-    process.exit(1);
+  process.stderr.write(`[FATAL] Startup error: ${error}\n`);
+  process.exit(1);
 });
