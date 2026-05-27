@@ -9,7 +9,6 @@ export const updateBlockTool = {
     new_html: z.string().description("The raw Gutenberg HTML block layout string to insert into that position")
   }),
   execute: async (_context: any, args: { post_id: number; metadata_name: string; new_html: string }) => {
-    // Grabbing the environment secrets directly to bypass internal framework routing
     const wpUrl = process.env.WORDPRESS_URL || "";
     const username = process.env.WORDPRESS_USERNAME || "";
     const password = process.env.WORDPRESS_PASSWORD || "";
