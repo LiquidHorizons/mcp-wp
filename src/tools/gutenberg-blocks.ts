@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { WordPressClient } from "../wordpress";
 
 export const updateBlockTool = {
   name: "update_block_by_name",
@@ -9,8 +8,13 @@ export const updateBlockTool = {
     metadata_name: z.string().description("The exact custom name assigned to the block's advanced metadata block name field (e.g., 'Hero Section')"),
     new_html: z.string().description("The raw Gutenberg HTML block layout string to insert into that position")
   }),
-  execute: async (client: WordPressClient, args: { post_id: number; metadata_name: string; new_html: string }) => {
-    const response = await client.request("POST", "/wp-json/mcp/v1/update-block", args);
+  execute: async (wpClient: any, args: { post_id: number; metadata_name: string; new_html: string }) => {
+    // Calling the API matching your framework's internal setup
+    const response = await wpClient.request({
+      method: "POST",
+      path: "/wp-json/mcp/v1/update-block",
+      data: args
+    });
     return {
       content: [{ type: "text", text: JSON.stringify(response) }]
     };
