@@ -8,13 +8,28 @@ export const updateBlockTool = {
     metadata_name: z.string().description("The exact custom name assigned to the block's advanced metadata block name field (e.g., 'Hero Section')"),
     new_html: z.string().description("The raw Gutenberg HTML block layout string to insert into that position")
   }),
-  execute: async (context: any, args: { post_id: number; metadata_name: string; new_html: string }) => {
-    // Bypassing TypeScript's property checking by using brackets to call the post method safely
-    const wpClient = context.wp;
-    const response = await wpClient["post"]("/wp-json/mcp/v1/update-block", args);
+  execute: async (_context: any, args: { post_id: number; metadata_name: string; new_html: string }) => {
+    // Grabbing the environment secrets directly to bypass internal framework routing
+    const wpUrl = process.env.WORDPRESS_URL || "";
+    const username = process.env.WORDPRESS_USERNAME || "";
+    const password = process.env.WORDPRESS_PASSWORD || "";
     
+    const targetUrl = `${wpUrl.replace(/\/$/, "")}/wp-json/mcp/v1/update-block`;
+    const credentials = Buffer.from(`${username}:${password}`).toString("base64");
+
+    const response = await fetch(targetUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Basic ${credentials}`
+      },
+      body: JSON.stringify(args)
+    });
+
+    const data = await response.json();
+
     return {
-      content: [{ type: "text", text: JSON.stringify(response.data || response) }]
+      content: [{ type: "text", text: JSON.stringify(data) }]
     };
   }
 };
