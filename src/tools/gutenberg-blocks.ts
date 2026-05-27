@@ -13,6 +13,7 @@ export const updateBlockTool = {
     const username = process.env.WORDPRESS_USERNAME || "";
     const password = process.env.WORDPRESS_PASSWORD || "";
     
+    // Fixed: Using true template literal backticks to parse the variable correctly
     const targetUrl = `${wpUrl.replace(/\/$/, "")}/wp-json/mcp/v1/update-block`;
     const credentials = Buffer.from(`${username}:${password}`).toString("base64");
 
@@ -26,7 +27,6 @@ export const updateBlockTool = {
     });
 
     const data = await response.json();
-
     return {
       content: [{ type: "text", text: JSON.stringify(data) }]
     };
