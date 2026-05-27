@@ -8,7 +8,8 @@ export const updateBlockTool = {
     metadata_name: z.string().description("The exact custom name assigned to the block's advanced metadata block name field (e.g., 'Hero Section')"),
     new_html: z.string().description("The raw Gutenberg HTML block layout string to insert into that position")
   }),
-  execute: async (_context: any, args: { post_id: number; metadata_name: string; new_html: string }) => {
+  // Removed the unused context argument entirely to stop the compiler from scanning it
+  execute: async (args: { post_id: number; metadata_name: string; new_html: string }) => {
     const wpUrl = process.env.WORDPRESS_URL || "";
     const username = process.env.WORDPRESS_USERNAME || "";
     const password = process.env.WORDPRESS_PASSWORD || "";
