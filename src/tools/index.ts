@@ -1,5 +1,4 @@
 // src/tools/index.ts
-
 import { unifiedContentTools, unifiedContentHandlers } from './unified-content.js';
 import { unifiedTaxonomyTools, unifiedTaxonomyHandlers } from './unified-taxonomies.js';
 import { pluginTools, pluginHandlers } from './plugins.js';
@@ -25,6 +24,7 @@ export const allTools: any[] = [
   ...sqlQueryTools,
   ...siteManagementTools,
   ...blockTools,
+  updateBlockTool,
 ];
 
 export const toolHandlers: any = {
