@@ -9,12 +9,14 @@ export const updateBlockTool = {
     new_html: z.string()
   }),
   execute: async (args: { post_id: number; metadata_name: string; new_html: string }) => {
-    const wpUrl = process.env.WORDPRESS_URL || "";
+    // Fixed: Pointing exactly to the WORDPRESS_API_URL variable active on your Render Dashboard
+    const wpUrl = process.env.WORDPRESS_API_URL || ""; 
     const username = process.env.WORDPRESS_USERNAME || "";
     const password = process.env.WORDPRESS_PASSWORD || "";
     
-    // Fixed: Using true template literal backticks to parse the variable correctly
-    const targetUrl = `${wpUrl.replace(/\/$/, "")}/wp-json/mcp/v1/update-block`;
+    // Clean up any trailing /wp-json if it was included in the environment variable
+    const baseUrl = wpUrl.replace(/\/wp-json\/?$/, "").replace(/\/$/, "");
+    const targetUrl = `${baseUrl}/wp-json/mcp/v1/update-block`;
     const credentials = Buffer.from(`${username}:${password}`).toString("base64");
 
     const response = await fetch(targetUrl, {
